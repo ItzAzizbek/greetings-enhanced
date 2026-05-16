@@ -1,0 +1,124 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#root {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background: #000;
+  color: #fff;
+  -webkit-font-smoothing: antialiased;
+}
+
+video::-webkit-media-controls {
+  display: none !important;
+}
+
+@keyframes greet-in {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.99);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes greet-out {
+  to {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+.greet-enter {
+  animation: greet-in 700ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+.greet-exit {
+  animation: greet-out 500ms ease-in forwards;
+}
+
+.idle-overlay {
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0) 35%, rgba(0, 0, 0, 0.55) 100%);
+}
+
+/* ── The Mirror: layered greeting choreography ───────────────────────── */
+
+@keyframes eyebrow-in {
+  0% { opacity: 0; letter-spacing: 0.15em; }
+  100% { opacity: 0.75; letter-spacing: 0.42em; }
+}
+
+@keyframes title-in {
+  0% { opacity: 0; transform: translateY(14px); filter: blur(6px); }
+  60% { filter: blur(0); }
+  100% { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+
+@keyframes stats-in {
+  0% { opacity: 0; transform: translateY(6px); }
+  100% { opacity: 0.78; transform: translateY(0); }
+}
+
+@keyframes whisper-in {
+  0% { opacity: 0; }
+  100% { opacity: 0.55; }
+}
+
+@keyframes portrait-breathe {
+  0%, 100% { opacity: 0.22; }
+  50% { opacity: 0.32; }
+}
+
+@keyframes constellation-rise {
+  0% { opacity: 0; transform: translateY(8px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes horizon-glow {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+@keyframes star-pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+.eyebrow-in  { animation: eyebrow-in  900ms ease-out 200ms both; }
+.title-in    { animation: title-in    1100ms cubic-bezier(0.2, 0.7, 0.2, 1) 500ms both; }
+.stats-in    { animation: stats-in    900ms ease-out 1500ms both; }
+.whisper-in  { animation: whisper-in  1200ms ease-out 2400ms both; }
+.portrait-breathe { animation: portrait-breathe 5s ease-in-out infinite; }
+.constellation-rise { animation: constellation-rise 1200ms cubic-bezier(0.2, 0.7, 0.2, 1) 1800ms both; }
+.horizon-glow { animation: horizon-glow 1800ms ease-out both; }
+
+.tabular { font-variant-numeric: tabular-nums; }
+
+/* Polaroid card — slides in from the left, settles at a casual tilt,
+   then breathes quietly for the rest of the moment. */
+@keyframes polaroid-in {
+  0%   { opacity: 0; transform: translate(-40px, 30px) rotate(-12deg); }
+  60%  { opacity: 1; transform: translate(2px, -4px) rotate(-1.5deg); }
+  100% { opacity: 1; transform: translate(0, 0) rotate(-2.5deg); }
+}
+
+@keyframes polaroid-sway {
+  0%, 100% { transform: rotate(-2.5deg) translateY(0); }
+  50%      { transform: rotate(-1.8deg) translateY(-3px); }
+}
+
+.polaroid-in {
+  animation:
+    polaroid-in 1100ms cubic-bezier(0.2, 0.7, 0.2, 1) 300ms both,
+    polaroid-sway 6s ease-in-out 1400ms infinite;
+}

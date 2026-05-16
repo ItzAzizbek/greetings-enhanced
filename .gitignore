@@ -1,0 +1,16 @@
+node_modules/
+dist/
+.env
+.env.local
+.env.*.local
+.firebase/
+*.log
+.DS_Store
+.vite/
+coverage/
+
+# User-uploaded files (keep the dir, drop the contents)
+backend/uploads/people/*
+!backend/uploads/people/.gitkeep
+backend/uploads/tmp/*
+!backend/uploads/tmp/.gitkeep

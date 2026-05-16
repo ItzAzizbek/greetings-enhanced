@@ -1,0 +1,64 @@
+import 'dotenv/config';
+import path from 'node:path';
+import express from 'express';
+import cors from 'cors';
+
+import adsRouter from './routes/ads.js';
+import personsRouter from './routes/persons.js';
+import detectionRouter from './routes/detection.js';
+import usersRouter from './routes/users.js';
+import collaborationsRouter from './routes/collaborations.js';
+import recognitionRouter from './routes/recognition.js';
+import starsRouter from './routes/stars.js';
+
+const app = express();
+
+const origins = (process.env.CORS_ORIGINS || '')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+app.use(
+  cors({
+    origin: origins.length ? origins : true,
+    credentials: true,
+  }),
+);
+
+// Preserve raw body for webhook signature verification
+app.use(
+  express.json({
+    limit: '2mb',
+    verify: (req, _res, buf) => {
+      req.rawBody = buf.toString('utf8');
+    },
+  }),
+);
+
+app.get('/health', (_req, res) => res.json({ ok: true }));
+
+// Serve user-uploaded photos
+app.use(
+  '/uploads',
+  express.static(path.resolve(process.cwd(), 'uploads'), {
+    maxAge: '1h',
+  }),
+);
+
+app.use('/api/ads', adsRouter);
+app.use('/api/persons', personsRouter);
+app.use('/api/detection', detectionRouter);
+app.use('/api/users', usersRouter);
+app.use('/api/collaborations', collaborationsRouter);
+app.use('/api/recognition', recognitionRouter);
+app.use('/api/stars', starsRouter);
+
+app.use((err, _req, res, _next) => {
+  console.error(err);
+  res.status(500).json({ error: err.message || 'Internal error' });
+});
+
+const PORT = process.env.PORT || 4000;
+app.listen(PORT, () => {
+  console.log(`Greetings Enhanced API listening on :${PORT}`);
+});
