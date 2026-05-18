@@ -15,3 +15,5 @@ backend/uploads/people/*
 !backend/uploads/people/.gitkeep
 backend/uploads/tmp/*
 !backend/uploads/tmp/.gitkeep
+.vercel
+.env*.local

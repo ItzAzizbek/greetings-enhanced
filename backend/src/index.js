@@ -1,7 +1,6 @@
 import 'dotenv/config';
 import path from 'node:path';
 import express from 'express';
-import cors from 'cors';
 
 import adsRouter from './routes/ads.js';
 import personsRouter from './routes/persons.js';
@@ -13,17 +12,43 @@ import starsRouter from './routes/stars.js';
 
 const app = express();
 
-const origins = (process.env.CORS_ORIGINS || '')
+// Explicit CORS. We previously used the `cors` package with `origin: true`, but
+// under Vercel's edge the reflected Access-Control-Allow-Origin header was being
+// dropped while the other CORS headers came through — leaving the browser to
+// reject every request. Setting the header by hand bypasses that.
+// TEMP: allow-all per corp "personal checks". If CORS_ORIGINS is set (comma
+// list), only those origins are reflected; otherwise everything is reflected.
+const ALLOWED = (process.env.CORS_ORIGINS || '')
   .split(',')
   .map((s) => s.trim())
   .filter(Boolean);
 
-app.use(
-  cors({
-    origin: origins.length ? origins : true,
-    credentials: true,
-  }),
-);
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  const allow =
+    !ALLOWED.length || (origin && ALLOWED.includes(origin));
+  if (allow && origin) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Vary', 'Origin');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+  } else if (allow) {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+  }
+  res.setHeader(
+    'Access-Control-Allow-Methods',
+    'GET,HEAD,POST,PUT,PATCH,DELETE,OPTIONS',
+  );
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    req.headers['access-control-request-headers'] ||
+      'Authorization,Content-Type',
+  );
+  if (req.method === 'OPTIONS') {
+    res.setHeader('Access-Control-Max-Age', '86400');
+    return res.status(204).end();
+  }
+  return next();
+});
 
 // Preserve raw body for webhook signature verification
 app.use(
