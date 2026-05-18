@@ -1,13 +1,7 @@
 import { Router } from 'express';
 import { db } from '../firebase.js';
 import { requireUser, requireAdmin } from '../middleware/auth.js';
-import {
-  videoUpload,
-  publicUrl,
-  saveUpload,
-  safeUnlink,
-  deleteByUrl,
-} from '../lib/uploads.js';
+import { deleteByUrl } from '../lib/uploads.js';
 
 const router = Router();
 
@@ -20,25 +14,23 @@ function priceFor({ startsAt, endsAt }) {
 
 // Submit a new collaboration request. Returns the adId and pricing so the
 // frontend can show its own mock checkout page before calling /mock-pay.
-router.post('/', requireUser, videoUpload.single('video'), async (req, res) => {
+router.post('/', requireUser, async (req, res) => {
   try {
     const title = (req.body.title || '').trim();
     const brand = req.body.brand?.trim() || null;
     const contactEmail = req.body.contactEmail?.trim() || null;
+    const videoUrl = req.body.videoUrl?.trim();
     const startsAt = Number(req.body.startsAt);
     const endsAt = Number(req.body.endsAt);
 
-    if (!title || !req.file || !startsAt || !endsAt) {
-      safeUnlink(req.file?.path);
+    if (!title || !videoUrl || !startsAt || !endsAt) {
       return res
         .status(400)
-        .json({ error: 'title, video file, startsAt, and endsAt are required.' });
+        .json({ error: 'title, videoUrl, startsAt, and endsAt are required.' });
     }
 
     const { days, amountCents } = priceFor({ startsAt, endsAt });
     const adRef = db().collection('ads').doc();
-    const filename = await saveUpload(req.file, 'ads', adRef.id);
-    const videoUrl = publicUrl(req, 'ads', filename);
 
     await adRef.set({
       title,
@@ -63,10 +55,6 @@ router.post('/', requireUser, videoUpload.single('video'), async (req, res) => {
       amountCents,
     });
   } catch (err) {
-    safeUnlink(req.file?.path);
-    if (req.file && req.body && req.body.title) {
-      // Best-effort: nothing to roll back on Firestore yet if we got here.
-    }
     res.status(500).json({ error: err.message });
   }
 });

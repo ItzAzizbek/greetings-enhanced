@@ -10,33 +10,49 @@ async function authHeaders() {
 }
 
 async function request(method, path, body) {
-  const isForm = typeof FormData !== 'undefined' && body instanceof FormData;
-  const headers = { ...(await authHeaders()) };
-  if (!isForm) headers['content-type'] = 'application/json';
+  const headers = { ...(await authHeaders()), 'content-type': 'application/json' };
 
   const res = await fetch(`${BASE}${path}`, {
     method,
     headers,
-    body: body == null ? undefined : isForm ? body : JSON.stringify(body),
+    body: body == null ? undefined : JSON.stringify(body),
   });
 
   if (!res.ok) throw new Error((await res.text()) || `${res.status}`);
   return res.json();
 }
 
-function submissionFormData({ title, brand, contactEmail, videoFile, startsAt, endsAt }) {
+// Browser → Cloudinary direct upload. Backend signs the request so the secret
+// stays server-side; the file itself never goes through our serverless function
+// (Vercel caps payloads at 4.5 MB).
+async function directUpload(file, kind) {
+  const sign = await request('POST', '/api/uploads/sign', { kind });
   const fd = new FormData();
-  fd.append('title', title);
-  if (brand) fd.append('brand', brand);
-  if (contactEmail) fd.append('contactEmail', contactEmail);
-  if (videoFile) fd.append('video', videoFile);
-  fd.append('startsAt', String(startsAt));
-  fd.append('endsAt', String(endsAt));
-  return fd;
+  fd.append('file', file);
+  fd.append('api_key', sign.apiKey);
+  fd.append('timestamp', String(sign.timestamp));
+  fd.append('signature', sign.signature);
+  fd.append('folder', sign.folder);
+  const res = await fetch(sign.uploadUrl, { method: 'POST', body: fd });
+  if (!res.ok) {
+    throw new Error('Cloudinary upload failed: ' + (await res.text()));
+  }
+  const json = await res.json();
+  return json.secure_url;
 }
 
 export const api = {
-  submit: (body) => request('POST', '/api/collaborations', submissionFormData(body)),
+  submit: async ({ title, brand, contactEmail, videoFile, startsAt, endsAt }) => {
+    const videoUrl = videoFile ? await directUpload(videoFile, 'ads') : undefined;
+    return request('POST', '/api/collaborations', {
+      title,
+      brand,
+      contactEmail,
+      videoUrl,
+      startsAt,
+      endsAt,
+    });
+  },
   mine: () => request('GET', '/api/collaborations/mine'),
   mockPay: (id) => request('POST', `/api/collaborations/${id}/mock-pay`),
   cancelPlacement: (id) => request('POST', `/api/collaborations/${id}/cancel`),

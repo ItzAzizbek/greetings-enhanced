@@ -1,13 +1,7 @@
 import { Router } from 'express';
 import { db } from '../firebase.js';
 import { requireAdmin } from '../middleware/auth.js';
-import {
-  videoUpload,
-  publicUrl,
-  saveUpload,
-  safeUnlink,
-  deleteByUrl,
-} from '../lib/uploads.js';
+import { deleteByUrl } from '../lib/uploads.js';
 
 const router = Router();
 
@@ -37,24 +31,17 @@ router.get('/', requireAdmin, async (_req, res) => {
   res.json({ ads: snap.docs.map((d) => ({ id: d.id, ...d.data() })) });
 });
 
-router.post('/', requireAdmin, videoUpload.single('video'), async (req, res) => {
+router.post('/', requireAdmin, async (req, res) => {
   try {
     const title = (req.body.title || '').trim();
-    if (!title) {
-      safeUnlink(req.file?.path);
-      return res.status(400).json({ error: 'Title is required.' });
-    }
-    if (!req.file) {
-      return res.status(400).json({ error: 'A video file is required.' });
-    }
+    const videoUrl = req.body.videoUrl?.trim();
+    if (!title) return res.status(400).json({ error: 'Title is required.' });
+    if (!videoUrl) return res.status(400).json({ error: 'A video URL is required.' });
 
     const tail = await db().collection('ads').orderBy('order', 'desc').limit(1).get();
     const nextOrder = tail.empty ? 0 : (tail.docs[0].data().order ?? 0) + 1;
 
     const ref = db().collection('ads').doc();
-    const filename = await saveUpload(req.file, 'ads', ref.id);
-    const videoUrl = publicUrl(req, 'ads', filename);
-
     await ref.set({
       title,
       videoUrl,
@@ -66,36 +53,30 @@ router.post('/', requireAdmin, videoUpload.single('video'), async (req, res) => 
     });
     res.json({ id: ref.id });
   } catch (err) {
-    safeUnlink(req.file?.path);
     res.status(500).json({ error: err.message });
   }
 });
 
-router.patch('/:id', requireAdmin, videoUpload.single('video'), async (req, res) => {
+router.patch('/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const ref = db().collection('ads').doc(id);
     const snap = await ref.get();
-    if (!snap.exists) {
-      safeUnlink(req.file?.path);
-      return res.status(404).json({ error: 'Ad not found.' });
-    }
+    if (!snap.exists) return res.status(404).json({ error: 'Ad not found.' });
     const existing = snap.data();
 
     const updates = { updatedAt: Date.now() };
     if (typeof req.body.title === 'string') updates.title = req.body.title.trim();
     if (typeof req.body.status === 'string') updates.status = req.body.status;
 
-    if (req.file) {
+    if (typeof req.body.videoUrl === 'string' && req.body.videoUrl) {
       deleteByUrl(existing.videoUrl);
-      const filename = await saveUpload(req.file, 'ads', id);
-      updates.videoUrl = publicUrl(req, 'ads', filename);
+      updates.videoUrl = req.body.videoUrl;
     }
 
     await ref.update(updates);
     res.json({ ok: true });
   } catch (err) {
-    safeUnlink(req.file?.path);
     res.status(500).json({ error: err.message });
   }
 });

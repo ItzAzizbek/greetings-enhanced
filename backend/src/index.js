@@ -9,6 +9,7 @@ import usersRouter from './routes/users.js';
 import collaborationsRouter from './routes/collaborations.js';
 import recognitionRouter from './routes/recognition.js';
 import starsRouter from './routes/stars.js';
+import uploadsRouter from './routes/uploads.js';
 
 const app = express();
 
@@ -77,6 +78,7 @@ app.use('/api/users', usersRouter);
 app.use('/api/collaborations', collaborationsRouter);
 app.use('/api/recognition', recognitionRouter);
 app.use('/api/stars', starsRouter);
+app.use('/api/uploads', uploadsRouter);
 
 app.use((err, _req, res, _next) => {
   console.error(err);
