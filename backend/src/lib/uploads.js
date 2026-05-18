@@ -2,7 +2,11 @@ import multer from 'multer';
 import fs from 'node:fs';
 import path from 'node:path';
 
-const UPLOADS_ROOT = path.resolve(process.cwd(), 'uploads');
+// On Vercel the working dir (/var/task) is read-only, so write under /tmp
+// (writable but ephemeral). Local/long-lived hosts keep the repo-relative path.
+const UPLOADS_ROOT = process.env.VERCEL
+  ? path.join('/tmp', 'uploads')
+  : path.resolve(process.cwd(), 'uploads');
 const TMP_DIR = path.join(UPLOADS_ROOT, 'tmp');
 fs.mkdirSync(TMP_DIR, { recursive: true });
 
