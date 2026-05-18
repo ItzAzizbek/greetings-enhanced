@@ -1,18 +1,15 @@
 import multer from 'multer';
-import fs from 'node:fs';
 import path from 'node:path';
+import { cloudinary, uploadBuffer } from './cloudinary.js';
 
-// On Vercel the working dir (/var/task) is read-only, so write under /tmp
-// (writable but ephemeral). Local/long-lived hosts keep the repo-relative path.
-const UPLOADS_ROOT = process.env.VERCEL
-  ? path.join('/tmp', 'uploads')
-  : path.resolve(process.cwd(), 'uploads');
-const TMP_DIR = path.join(UPLOADS_ROOT, 'tmp');
-fs.mkdirSync(TMP_DIR, { recursive: true });
+const KIND_TO_RESOURCE = {
+  people: 'image',
+  ads: 'video',
+};
 
 function makeUpload({ allowedMime, allowedExt, maxSizeMb, label }) {
   return multer({
-    dest: TMP_DIR,
+    storage: multer.memoryStorage(),
     limits: { fileSize: maxSizeMb * 1024 * 1024 },
     fileFilter: (_req, file, cb) => {
       if (allowedMime.test(file.mimetype)) return cb(null, true);
@@ -39,52 +36,41 @@ export const videoUpload = makeUpload({
   label: 'Video',
 });
 
-const EXT_BY_MIME = {
-  'image/jpeg': '.jpg',
-  'image/jpg': '.jpg',
-  'image/png': '.png',
-  'image/webp': '.webp',
-  'image/gif': '.gif',
-  'video/mp4': '.mp4',
-  'video/webm': '.webm',
-  'video/quicktime': '.mov',
-  'video/ogg': '.ogv',
-  'video/x-matroska': '.mkv',
-};
-
-export function extFor(file) {
-  const fromName = path.extname(file.originalname || '').toLowerCase();
-  if (fromName) return fromName;
-  return EXT_BY_MIME[file.mimetype] || '';
-}
-
-export function dirFor(kind) {
-  const dir = path.join(UPLOADS_ROOT, kind);
-  fs.mkdirSync(dir, { recursive: true });
-  return dir;
-}
-
-export function publicUrl(req, kind, filename) {
-  return `${req.protocol}://${req.get('host')}/uploads/${kind}/${filename}`;
-}
-
+// Uploads to Cloudinary under <kind>/<id> and returns the secure URL.
+// Previously returned just a filename and the caller composed a URL via
+// publicUrl(); now publicUrl is a pass-through so existing routes keep working.
 export async function saveUpload(file, kind, id) {
-  const filename = `${id}${extFor(file)}`;
-  await fs.promises.rename(file.path, path.join(dirFor(kind), filename));
-  return filename;
+  const result = await uploadBuffer({
+    buffer: file.buffer,
+    folder: kind,
+    publicId: id,
+    resourceType: KIND_TO_RESOURCE[kind] || 'auto',
+  });
+  return result.secure_url;
 }
 
-export function safeUnlink(filePath) {
-  if (!filePath) return;
-  fs.promises.unlink(filePath).catch(() => {});
+export function publicUrl(_req, _kind, filenameOrUrl) {
+  return filenameOrUrl;
 }
 
-// Given a stored absolute URL like http://host/uploads/<kind>/<filename>,
-// delete the corresponding file from disk. No-op if URL is foreign or missing.
-export function deleteByUrl(url) {
+export async function deleteByUrl(url) {
   if (!url) return;
-  const m = /\/uploads\/([^/]+)\/([^/?#]+)$/.exec(url);
+  // Cloudinary URLs:
+  //   https://res.cloudinary.com/<cloud>/(image|video)/upload/v123/<folder>/<publicId>.<ext>
+  const m = /res\.cloudinary\.com\/[^/]+\/(image|video)\/upload\/(?:v\d+\/)?(.+)\.[a-zA-Z0-9]+$/.exec(
+    url,
+  );
   if (!m) return;
-  const filePath = path.join(UPLOADS_ROOT, m[1], m[2]);
-  fs.promises.unlink(filePath).catch(() => {});
+  try {
+    await cloudinary.uploader.destroy(m[2], {
+      resource_type: m[1],
+      invalidate: true,
+    });
+  } catch {
+    // best-effort cleanup
+  }
+}
+
+export function safeUnlink(_filePath) {
+  // memory storage — nothing to clean up
 }
