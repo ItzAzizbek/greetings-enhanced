@@ -58,7 +58,13 @@ app.use((err, _req, res, _next) => {
   res.status(500).json({ error: err.message || 'Internal error' });
 });
 
-const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => {
-  console.log(`Greetings Enhanced API listening on :${PORT}`);
-});
+// Vercel sets process.env.VERCEL; in that case the platform invokes the
+// exported app as a serverless handler, so don't bind a port.
+if (!process.env.VERCEL) {
+  const PORT = process.env.PORT || 4000;
+  app.listen(PORT, () => {
+    console.log(`Greetings Enhanced API listening on :${PORT}`);
+  });
+}
+
+export default app;

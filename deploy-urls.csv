@@ -1,0 +1,6 @@
+Surface,Local,Vercel
+backend,http://localhost:4000,https://greetings-backend.vercel.app/
+output,http://localhost:5170,https://greetings-output.vercel.app/
+admin,http://localhost:5171,https://greetings-admin.vercel.app/
+user,http://localhost:5172,https://greetings-user.vercel.app/
+collaborations,http://localhost:5173,https://greetings-collaborations.vercel.app/
